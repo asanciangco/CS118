@@ -25,7 +25,6 @@ void dostuff(int); /* function prototype */
 void parseRequest(int);
 char* readFileBytes(const char *);
 
-
 void error(char *msg)
 {
     perror(msg);
@@ -161,18 +160,67 @@ void parseRequest(int sock)
 
 	file = readFileBytes(req);
 	
-	char tim[1000];
+	//// Regular stuff
+	char *headerTop = "HTTP/1.1 200 OK\nConnection: close\n";
+	int headerTopLength = strlen(headerTop);
+	
+	//// Date Header
+	char date[100];
+	int dateLength;
+	
 	time_t now = time(0);
 	struct tm tm = *gmtime(&now);
-	strftime(tim, sizeof tim, "%a, %d %b %Y %H:%M:%S %Z", &tm);
-	printf("Time is: %s\n", tim);
+	strftime(date, sizeof date, "Date: %a, %d %b %Y %H:%M:%S %Z\n", &tm);
+	dateLength = strlen(date);
+	//printf("%s", date, dateLength);
+	
+	
+	//// Server name header
+	char *serverName = "Server: SanciangcoLung/1.0\n";
+	int serverLength = strlen(serverName);
+	//printf("%s", serverName);
+	
+	//// File modification date
+	struct stat attrib;
+    stat(req, &attrib);
+    char modDate[100];
+    strftime(modDate, sizeof modDate, "Last-Modified: %a, %d %m %y %H:%M:%S %Z\n", gmtime(&(attrib.st_ctime)));
+    //printf("%s", modDate);
+	int fileModLen = strlen(modDate);
+	
+	//// Content length
+	char contentLength[64];
+	sprintf(contentLength, "Content-Length: %i\n", size);
+	//printf("%s", contentLength);
+	int conLenLen = strlen(contentLength);
+	
+	//// Content type
+	char *type;
+	if (req[r_index - 1] == 'l')
+			type = "text/html";
+	else if (req[r_index - 1] == 'g')
+			type = "image/jpeg";
+	char contentType[32];
+	sprintf(contentType, "Content-Type: %s\n\n", type); // 2 new lines since it's the end of the header
+	int typeLen = strlen(contentType);
+	
+	int headerLength = headerTopLength + dateLength + serverLength + fileModLen + conLenLen + typeLen;
+	
+	//// Generate full header
+	char *header;
+	header = malloc(sizeof(char) * headerLength + size);
+	sprintf(header, "%s%s%s%s%s%s", headerTop, date, serverName, modDate, contentLength, contentType);
+	printf("%s", header);
+	
+	strcat(header, file);
+	
 	
 	if (file == NULL)
 	{
 		error("ERROR file error");
 		return;
 	}
-	n = write(sock, file, size);
+	n = write(sock, header, headerLength + size);
 	if (n < 0)
 		error("ERROR writing to socket");
 	

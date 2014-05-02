@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in serv_addr;
     struct hostent *server; //contains tons of information, including the server's IP address
 
-    char buffer[256];
+    char buffer[512];
     if (argc < 3) {
        fprintf(stderr,"usage %s hostname port\n", argv[0]);
        exit(0);
@@ -50,16 +50,16 @@ int main(int argc, char *argv[])
         error("ERROR connecting");
     
     printf("Please enter the message: ");
-    bzero(buffer,256);
-    fgets(buffer,255,stdin);
+    bzero(buffer,512);
+    fgets(buffer,511,stdin);
     
     //n = send(sockfd,buffer,strlen(buffer),0); //send to the socket
     n = write(sockfd,buffer,strlen(buffer)); //write to the socket
     if (n < 0) 
          error("ERROR writing to socket");
     
-    bzero(buffer,256);
-    n = read(sockfd,buffer,255); //read from the socket
+    bzero(buffer,512);
+    n = read(sockfd,buffer,511); //read from the socket
     if (n < 0) 
          error("ERROR reading from socket");
     printf("%s\n",buffer);
