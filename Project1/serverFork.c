@@ -112,7 +112,7 @@ void dostuff (int sock)
 void parseRequest(int sock)
 {
 	int n;
-	int buf_size = 256;
+	int buf_size = 512;
 	char buf[buf_size];
 	char req[buf_size];
 	char *content_type = "text/html"; 
@@ -200,6 +200,8 @@ void parseRequest(int sock)
 			type = "text/html";
 	else if (req[r_index - 1] == 'g')
 			type = "image/jpeg";
+	else if (req[r_index - 1] == 'f')
+			type = "image/gif";
 	char contentType[32];
 	sprintf(contentType, "Content-Type: %s\n\n", type); // 2 new lines since it's the end of the header
 	int typeLen = strlen(contentType);
@@ -233,7 +235,7 @@ void parseRequest(int sock)
 		return;
 	}
 	n = write(sock, header, headerLength);
-	n = write(sock, file, size);
+	n = write(sock, file, size + 200);
 	if (n < 0)
 		error("ERROR writing to socket");
 	
