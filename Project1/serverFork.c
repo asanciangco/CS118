@@ -9,8 +9,11 @@
 #include <netinet/in.h>  // constants and structures needed for internet domain addresses, e.g. sockaddr_in
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
+#include <time.h>
 #include <sys/wait.h>	/* for the waitpid() system call */
 #include <signal.h>	/* signal name macros, and the kill() prototype */
+#include <sys/stat.h>
 
 
 void sigchld_handler(int s)
@@ -19,6 +22,10 @@ void sigchld_handler(int s)
 }
 
 void dostuff(int); /* function prototype */
+void parseRequest(int);
+char* readFileBytes(const char *);
+
+
 void error(char *msg)
 {
     perror(msg);
@@ -65,7 +72,7 @@ int main(int argc, char *argv[])
      
      while (1) {
          newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-         
+		 
          if (newsockfd < 0) 
              error("ERROR on accept");
          
@@ -75,7 +82,8 @@ int main(int argc, char *argv[])
          
          if (pid == 0)  { // fork() returns a value of 0 to the child process
              close(sockfd);
-             dostuff(newsockfd);
+             //dostuff(newsockfd);
+			 parseRequest(newsockfd);
              exit(0);
          }
          else //returns the process ID of the child process to the parent
@@ -100,4 +108,84 @@ void dostuff (int sock)
    printf("Here is the message: %s\n",buffer);
    n = write(sock,"I got your message",18);
    if (n < 0) error("ERROR writing to socket");
+}
+
+void parseRequest(int sock)
+{
+	int n;
+	int buf_size = 256;
+	char buf[buf_size];
+	char req[buf_size];
+	char *content_type = "text/html"; 
+	
+	bzero(buf, buf_size);
+	bzero(req, buf_size);
+	n = read(sock, buf, buf_size - 1);
+	
+	if (n < 0)
+		error("ERROR reading from socket");
+	
+	// print request to server
+	printf("Here is the message: %s\n",buf);
+	
+	int spaces = 0;
+	int b_index = 0;
+	int r_index = 0;
+	while (b_index < buf_size)
+	{
+		if (buf[b_index] == ' ')
+			spaces++;
+		if (spaces == 1)
+		{
+			if (buf[b_index] != '/' && buf[b_index] != ' ')
+			{
+				req[r_index] = buf[b_index];
+				r_index++; // careful!
+			}
+		} else if (spaces == 2)
+			break;
+		b_index++;
+	}
+	// req should now have the filename of length r_index (NOT r_index+1!!!)
+	req[r_index] = '\0';
+	
+	//printf("%s\n", req);
+	
+	char *file;
+	struct stat st;
+	int size;
+	
+	// get file size
+	stat(req, &st);
+	size = st.st_size;
+
+	file = readFileBytes(req);
+	
+	char tim[1000];
+	time_t now = time(0);
+	struct tm tm = *gmtime(&now);
+	strftime(tim, sizeof tim, "%a, %d %b %Y %H:%M:%S %Z", &tm);
+	printf("Time is: %s\n", tim);
+	
+	if (file == NULL)
+	{
+		error("ERROR file error");
+		return;
+	}
+	n = write(sock, file, size);
+	if (n < 0)
+		error("ERROR writing to socket");
+	
+}
+
+char* readFileBytes(const char *name)
+{
+    FILE *fl = fopen(name, "r");
+    fseek(fl, 0, SEEK_END);
+    long len = ftell(fl);
+    char *ret = malloc(len);
+    fseek(fl, 0, SEEK_SET);
+    fread(ret, 1, len, fl);
+    fclose(fl);
+    return ret;
 }
