@@ -212,15 +212,28 @@ void parseRequest(int sock)
 	sprintf(header, "%s%s%s%s%s%s", headerTop, date, serverName, modDate, contentLength, contentType);
 	printf("%s", header);
 	
-	strcat(header, file);
-	
 	
 	if (file == NULL)
 	{
+		//// Send error 404 Not found
+		char *e_temp = "HTTP/1.1 404 Not Found\nConnection: close\n";
+		headerTopLength = strlen(e_temp);
+		
+		headerLength = headerTopLength + dateLength + serverLength;
+		
+		char *error404;
+		error404 = malloc(sizeof(char) * headerLength);
+		
+		sprintf(error404, "%s%s%s", e_temp, date, serverName);
+		printf("%s", error404);
+		
+		n = write(sock, error404, headerLength);
+		
 		error("ERROR file error");
 		return;
 	}
-	n = write(sock, header, headerLength + size);
+	n = write(sock, header, headerLength);
+	n = write(sock, file, size);
 	if (n < 0)
 		error("ERROR writing to socket");
 	
@@ -229,6 +242,8 @@ void parseRequest(int sock)
 char* readFileBytes(const char *name)
 {
     FILE *fl = fopen(name, "r");
+	if (!fl)
+		return NULL;
     fseek(fl, 0, SEEK_END);
     long len = ftell(fl);
     char *ret = malloc(len);
